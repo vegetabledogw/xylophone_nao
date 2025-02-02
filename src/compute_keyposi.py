@@ -107,16 +107,22 @@ def rotation_matrix_y(degrees):
 
 def rotation_matrix_to_euler_angles(R):
     """
-    Convert a rotation matrix to Euler angles (Yaw, Pitch, Roll)
+    Convert a rotation matrix to Euler angles (XYZ order):
+    The rotation is assumed to be R = Rz(gamma) * Ry(beta) * Rx(alpha),
+    which means:
+      - First rotate by alpha around X (roll)
+      - Then rotate by beta around Y (pitch)
+      - Finally rotate by gamma around Z (yaw)
 
     Parameters:
     - R: 3x3 rotation matrix
 
     Returns:
-    - yaw, pitch, roll: Euler angles in radians
+    - [alpha, beta, gamma]: Euler angles in radians corresponding to rotations about
+      X, Y, and Z axes respectively.
     """
-    # Debugging Statements
-    print("----- Debugging Inside rotation_matrix_to_euler_angles -----")
+    # Debugging statements
+    print("----- Debugging Inside rotation_matrix_to_euler_angles_XYZ -----")
     print("Type of R:", type(R))
     print("Shape of R:", R.shape)
     print("Number of dimensions (ndim):", R.ndim)
@@ -129,41 +135,27 @@ def rotation_matrix_to_euler_angles(R):
     if R.shape != (3, 3):
         raise ValueError("Input rotation matrix must be a 3x3 matrix.")
 
-    # Access elements using separate indices (Python 2 compatible)
-    try:
-        r00 = R[0][0]
-        r10 = R[1][0]
-        r20 = R[2][0]
-        r21 = R[2][1]
-        r22 = R[2][2]
-        r12 = R[1][2]
-        r11 = R[1][1]
-    except IndexError as e:
-        print("Error accessing elements of R:", e)
-        print("Ensure that R is a 3x3 matrix.")
-        raise
+    # Compute beta = arcsin(R[0,2])
+    beta = np.arcsin(R[0, 2])
+    # Compute cos(beta) to determine if the rotation is in a singular state
+    cos_beta = np.cos(beta)
 
-    # Compute sy (sqrt of squares of first two elements in first column)
-    sy = np.sqrt(r00 ** 2 + r10 ** 2)
-
-    # Check for singularity
-    singular = sy < 1e-6
-
-    if not singular:
-        roll = np.arctan2(r21, r22)
-        pitch = np.arctan2(-r20, sy)
-        yaw = np.arctan2(r10, r00)
+    # Check for singularity (gimbal lock) using a small threshold
+    if abs(cos_beta) > 1e-6:
+        # Non-singular case
+        alpha = np.arctan2(-R[1, 2], R[2, 2])
+        gamma = np.arctan2(-R[0, 1], R[0, 0])
     else:
-        roll = np.arctan2(-r12, r11)
-        pitch = np.arctan2(-r20, sy)
-        yaw = 0
+        # Singular case: set alpha = 0 and compute gamma from other elements
+        alpha = 0
+        gamma = np.arctan2(R[1, 0], R[1, 1])
 
-    print("Yaw (rad):", yaw)
-    print("Pitch (rad):", pitch)
-    print("Roll (rad):", roll)
+    print("X (roll, alpha) (rad):", alpha)
+    print("Y (pitch, beta) (rad):", beta)
+    print("Z (yaw, gamma) (rad):", gamma)
     print("----- End of Debugging -----")
 
-    return [yaw, pitch, roll]
+    return [alpha, beta, gamma]
 
 
 # Main function to compute the key positions and store them in a CSV.
